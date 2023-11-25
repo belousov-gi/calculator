@@ -1,0 +1,19 @@
+﻿@model SessionCalculationResultsModel
+@{
+    if (@Model?.sessionCalcResults != null)
+    {
+        foreach (var res in @Model.sessionCalcResults)
+        {
+            <div>
+                <p>Выражение: @res.InputString</p>
+                <p>Результат: @res.Result</p>
+            </div>
+        }  
+    }
+
+    else
+    {
+        <div> Вы не ввели еще ниодного выражения</div>
+    }
+    
+}

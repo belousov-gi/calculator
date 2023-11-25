@@ -1,0 +1,39 @@
+﻿@model SessionCalculationResultsModel
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+
+<div>
+    <form method="post" asp-controller="Home" asp-action="Index">
+        <label> Введите выражение</label>
+        <p>Поддерживаемые символы [0-9+-/*^]</p>
+        <div class="editor-field" asp-items="@ViewBag">
+            @Html.EditorFor(model => model.InputString)
+            @Html.ValidationMessageFor(model => model.InputString)
+            @ViewBag.Message
+        </div>
+        <div>
+            <input type="submit" value="Получить результат" class="submitBtn" />
+        </div>
+    </form>
+</div>
+
+@{
+
+    if (@Model?.sessionCalcResults != null)
+    {
+        foreach (var result in @Model.sessionCalcResults)
+        {
+            <div class="result">
+                <p> Введеное выражение : @result.InputString</p>
+                <p> Результат : @result.Result</p>
+            </div>
+        } 
+    }
+    else
+    {
+        <div>Вы не ввели ниодного выражения</div>
+    }
+    
+}
