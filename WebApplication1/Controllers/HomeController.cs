@@ -74,7 +74,7 @@ public class HomeController : Controller
     
         else
         {
-            Regex regex = new Regex(@"[^0-9+\-\/*^ ]");
+            Regex regex = new Regex(@"[^0-9+\-\/*^ (),]");
             MatchCollection matches = regex.Matches(data);
             if (matches.Count > 0)
             {

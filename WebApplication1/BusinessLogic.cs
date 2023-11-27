@@ -34,7 +34,7 @@ public class BusinessLogic
         }
         
         //TODO: возможэно стоит поменять double на decimal, точность будет выше
-        //Получаем цельное число
+        //Получаем число
         private string GetStringNumber(string expr, ref int pos)
         {
             string strNumber = "";
@@ -44,7 +44,7 @@ public class BusinessLogic
                 char num = expr[pos];
 	
                 //	Проверяем, является символ числом
-                if (Char.IsDigit(num) || num == '.')
+                if (Char.IsDigit(num) || num == ',')
                     //	Если да - прибавляем к строке
                     strNumber += num;
                 else
@@ -66,36 +66,64 @@ public class BusinessLogic
             string postfixExpr = "";
             //	Инициализация стека, содержащий операторы в виде символов
             Stack<char> stack = new();
-
+            bool IsPreviousValOperator = false; 
+            
             for (int i = 0; i < infixExpr.Length; i++)
             {
                 char c = infixExpr[i];
-      
+              
                 if (Char.IsDigit(c))
                 {
+                    //TODO:добавить обработку наличия операторов нормальную
+                   
                     //	Парсии его, передав строку и текущую позицию, и заносим в выходную строку
                     postfixExpr += GetStringNumber(infixExpr, ref i) + " ";
+                    IsPreviousValOperator = false;
+                    
                 }
                
                 else if (c == '(')
                 {
-                    stack.Push(c);
+                    if (IsPreviousValOperator || i == 0)
+                    {
+                        stack.Push(c);
+                        IsPreviousValOperator = false; 
+                    }
+                    else
+                    {
+                        throw new Exception("Укажите перед скобками оператор");
+                    }
+                
                 }
                
                 else if (c == ')')
                 {
+                    int stackCount = stack.Count;
                     //	Заносим в выходную строку из стека всё вплоть до открывающей скобки
-                    while (stack.Count > 0 && stack.Peek() != '(')
+                    while (stackCount > 0 && stack.Peek() != '(')
                     {
-                        postfixExpr += stack.Pop(); 
+                        if (stackCount == 1)
+                        {
+                            throw new Exception("Неверно расставлены скобки");
+                        }
+                        
+                        postfixExpr += stack.Pop();
+                        
                     }
                     
                     //	Удаляем открывающуюся скобку из стека
                     stack.Pop();
+                    IsPreviousValOperator = false;
                 }
                 
                 else if (operationPriority.ContainsKey(c))
                 {
+                    if (IsPreviousValOperator)
+                    {
+                        throw new Exception("Два оператора подряд. Используйте скобки при необходимости");
+                    }
+                    IsPreviousValOperator = true;
+                    
                     char op = c;
                     
                     //	Если да, то сначала проверяем является ли оператор унарным символом
@@ -139,8 +167,8 @@ public class BusinessLogic
                     }
 
                     throw new DivideByZeroException();
-
                 }
+                
                 case '^': return Math.Pow(first, second);
                 default: throw new Exception("Invalid operator");
             }
