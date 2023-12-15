@@ -1,27 +1,29 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
-using WebApplication1.Extesions;
+using WebApplication1.Enums;
+using WebApplication1.Interfaces;
 using WebApplication1.Models;
 
 namespace WebApplication1.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
-
-    private BusinessLogic _businessLogic;
+    private CalculatorLogic _calculatorLogic;
+    private ISessionsStorage _sessionsStorage;
     
 
-    public HomeController(ILogger<HomeController> logger, BusinessLogic businessLogic)
+    public HomeController(CalculatorLogic calculatorLogic, ISessionsStorage sessionsStorage)
     {
-        _logger = logger;
-        _businessLogic = businessLogic;
+        _calculatorLogic = calculatorLogic;
+        _sessionsStorage = sessionsStorage;
     }
     
     public IActionResult Index()
     {
-        var results = SessionManager.Get<SessionCalculationResultsModel>(HttpContext.Session, "sessionCalcResults");
+        TypeOfSorting typeOfSorting = TypeOfSorting.ACS;
+        var results = _sessionsStorage.Get(HttpContext.Session, "sessionCalcResults", typeOfSorting);
+        
         return View(results);
     }
     
@@ -29,80 +31,67 @@ public class HomeController : Controller
     public IActionResult Index( SessionCalculationResultsModel calculationParamsModel)
     {
         var results =
-            SessionManager.Get<SessionCalculationResultsModel>(HttpContext.Session, "sessionCalcResults");
-        
+            _sessionsStorage.Get(HttpContext.Session, "sessionCalcResults");
+
         try
         {
-            var validateAnswer = ValidateInputData(calculationParamsModel.InputString);
-            if (validateAnswer.IsValidationPassed)
+            ValidateInputData(calculationParamsModel.InputString);
+            
+            var inputString = calculationParamsModel.InputString.Replace(" ", "");
+            var result = _calculatorLogic.Calculate(inputString);
+            var resultModel = new CalculationResultModel()
             {
-                if (ModelState.IsValid)
-                {
-                    var inputString = calculationParamsModel.InputString.Replace(" ", "");
-                    var result = _businessLogic.StartСalculation(inputString);
-                    var resultModel = new CalculationResultModel()
-                    {
-                        Result = result,
-                        InputString = inputString
-                    };
-                
-                    results.sessionCalcResults.Add(resultModel);
-                    SessionManager.Set(HttpContext.Session, "sessionCalcResults", results);
-                    return View(results);
-                }
-            }
-
-            ViewBag.Message = validateAnswer.ValidationFailInfo;
-            return View(results);
+                Result = result,
+                InputString = inputString
+            };
+            results.sessionCalcResults.Add(resultModel);
+            
+            _sessionsStorage.Set(HttpContext.Session, "sessionCalcResults", results);
+            return Redirect("/");
+            
         }
-        catch (Exception e)
+        catch (ValidationException e)
         {
-            Console.WriteLine(e);
             ViewBag.Message = e.Message;
+            return View(results); 
+        }
+        
+        catch (Exception)
+        {
+            ViewBag.Message = "Произошла ошибка при вычислениях";
             return View(results);
         }
     }
 
     //TODO: разобраться как прокидывать кастомные ошибки во вьюхи
     [NonAction]
-    public ValidateAnswerModel ValidateInputData(string data)
+    public void ValidateInputData(string data)
     {
         if (data == null)
         {
-            return new ValidateAnswerModel(false, "Введите выражение");
+            throw new ValidationException("Введите выражение");
         }
-    
-        else
+        
+        Regex regex = new Regex(@"[^0-9+\-\/*^ (),]");
+        MatchCollection matches = regex.Matches(data);
+        if (matches.Count > 0)
         {
-            Regex regex = new Regex(@"[^0-9+\-\/*^ (),]");
-            MatchCollection matches = regex.Matches(data);
-            if (matches.Count > 0)
-            {
-                return new ValidateAnswerModel(false, $@"Найдены неподдерживаемые символы, например: {matches[0].Value}");
-            }
-           
-            
-            regex = new Regex(@"[\d]");
-            matches = regex.Matches(data);
-            if (matches.Count < 1)
-            {
-                return new ValidateAnswerModel(false, $@"Не введено ниодного числа");
-            }
-            
-            regex = new Regex(@"(?=([*+-\/^]))\1{2,}");
-            matches = regex.Matches(data);
-            if (matches.Count > 1)
-            {
-                return new ValidateAnswerModel(false, $@"Найдены повторяющиеся операторы");
-            }
+            throw new ValidationException($"Найдены неподдерживаемые символы, например: {matches[0].Value}");
         }
-        return new ValidateAnswerModel(true);
-    }
- 
-
-    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
-    {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+       
+        
+        regex = new Regex(@"[\d]");
+        matches = regex.Matches(data);
+        if (matches.Count < 1)
+        {
+            throw new ValidationException("Не введено ниодного числа");
+        }
+        
+        regex = new Regex(@"(?=([*+-\/^]))\1{2,}");
+        matches = regex.Matches(data);
+        if (matches.Count > 1)
+        {
+            throw new ValidationException("Найдены повторяющиеся операторы");
+        }
     }
 }

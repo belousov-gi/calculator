@@ -1,12 +1,13 @@
 using WebApplication1;
-using WebApplication1.Extesions;
-using WebApplication1.Models;
+using WebApplication1.Interfaces;
+using WebApplication1.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddScoped<BusinessLogic>();
+builder.Services.AddScoped<CalculatorLogic>();
+builder.Services.AddSingleton<ISessionsStorage, SessionStorageService>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession();  
 

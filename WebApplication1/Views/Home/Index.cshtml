@@ -3,14 +3,12 @@
     ViewData["Title"] = "Home Page";
 }
 
-
 <div>
     <form method="post" asp-controller="Home" asp-action="Index">
         <label> Введите выражение</label>
         <p>Поддерживаемые символы [0-9+-/*^]</p>
         <div class="editor-field" asp-items="@ViewBag">
             @Html.EditorFor(model => model.InputString)
-            @Html.ValidationMessageFor(model => model.InputString)
             @ViewBag.Message
         </div>
         <div>
@@ -33,7 +31,6 @@
     }
     else
     {
-        <div>Вы не ввели ниодного выражения</div>
-    }
+        <div>Вы не ввели ниодного выражения</div>}
     
 }

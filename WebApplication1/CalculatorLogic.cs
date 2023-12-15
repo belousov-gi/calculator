@@ -1,13 +1,16 @@
-﻿namespace WebApplication1;
+﻿using System.ComponentModel.DataAnnotations;
+using WebApplication1.Enums;
 
-public class BusinessLogic
+namespace WebApplication1;
+
+public class CalculatorLogic
 {
     //TODO: сделать обработку деления на 0 через exception
     //TODO: сделать возможность использования не только целых чисел
-    public double StartСalculation( string expression)
+    public double Calculate( string expression)
     {
         Calculator calculator = new(expression);
-        return calculator.Calc();
+        return calculator.CalcPostfix();
     }
     
     public class Calculator
@@ -66,9 +69,11 @@ public class BusinessLogic
             string postfixExpr = "";
             //	Инициализация стека, содержащий операторы в виде символов
             Stack<char> stack = new();
-            bool IsPreviousValOperator = false; 
-            
-            for (int i = 0; i < infixExpr.Length; i++)
+            Stack<char> braketsValidationStack = new();
+            TypeOfChar? previusChar = null;
+
+            int LengthOfExpr = infixExpr.Length;
+            for (int i = 0; i < LengthOfExpr; i++)
             {
                 char c = infixExpr[i];
               
@@ -78,51 +83,43 @@ public class BusinessLogic
                    
                     //	Парсии его, передав строку и текущую позицию, и заносим в выходную строку
                     postfixExpr += GetStringNumber(infixExpr, ref i) + " ";
-                    IsPreviousValOperator = false;
+                    ValidateInputData(TypeOfChar.numeric, previusChar, infixExpr, i);
+                    previusChar = TypeOfChar.numeric;
                     
                 }
                
                 else if (c == '(')
                 {
-                    if (IsPreviousValOperator || i == 0)
+                    if (previusChar == TypeOfChar.sequenceOperator || i == 0 || c == '(')
                     {
                         stack.Push(c);
-                        IsPreviousValOperator = false; 
+                        braketsValidationStack.Push(c);
                     }
-                    else
-                    {
-                        throw new Exception("Укажите перед скобками оператор");
-                    }
-                
                 }
                
                 else if (c == ')')
                 {
+                    if (!braketsValidationStack.Any())
+                    {
+                        throw new ValidationException("Невалидная последовательность скобок");
+                    }
+                    
                     int stackCount = stack.Count;
                     //	Заносим в выходную строку из стека всё вплоть до открывающей скобки
                     while (stackCount > 0 && stack.Peek() != '(')
                     {
-                        if (stackCount == 1)
-                        {
-                            throw new Exception("Неверно расставлены скобки");
-                        }
-                        
-                        postfixExpr += stack.Pop();
-                        
+                        postfixExpr += stack.Pop();                        
                     }
                     
                     //	Удаляем открывающуюся скобку из стека
                     stack.Pop();
-                    IsPreviousValOperator = false;
+                    braketsValidationStack.Pop();
                 }
                 
                 else if (operationPriority.ContainsKey(c))
                 {
-                    if (IsPreviousValOperator)
-                    {
-                        throw new Exception("Два оператора подряд. Используйте скобки при необходимости");
-                    }
-                    IsPreviousValOperator = true;
+                    ValidateInputData(TypeOfChar.sequenceOperator, previusChar,  infixExpr, i);
+                    previusChar = TypeOfChar.sequenceOperator;
                     
                     char op = c;
                     
@@ -149,6 +146,11 @@ public class BusinessLogic
                 postfixExpr += op;
             }
             
+            if (braketsValidationStack.Any())
+            {
+                throw new ValidationException("Невалидная последовательность скобок");
+            }
+            
             return postfixExpr;
         }
 
@@ -168,14 +170,13 @@ public class BusinessLogic
 
                     throw new DivideByZeroException();
                 }
-                
                 case '^': return Math.Pow(first, second);
-                default: throw new Exception("Invalid operator");
+                default: throw new ValidationException("Невалидный оператор");
             }
             
         }
         
-        public double Calc()
+        public double CalcPostfix()
         {
             //	Стек для хранения чисел
             Stack<double> locals = new();
@@ -202,7 +203,7 @@ public class BusinessLogic
                     {
                         //	Проверяем, пуст ли стек: если да - задаём нулевое значение,
                         //	еси нет - выталкиваем из стека значение
-                        double last = locals.Count > 0 ? locals.Pop() : 0;
+                        double last = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов");
 
                         //	Получаем результат операции и заносим в стек
                         locals.Push(CalcualateExpr('-', 0, last));
@@ -210,8 +211,8 @@ public class BusinessLogic
                     }
 					            
                     //	Получаем значения из стека в обратном порядке
-                    double second = locals.Count > 0 ? locals.Pop() : 0,
-                    first = locals.Count > 0 ? locals.Pop() : 0;
+                    double second = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов"),
+                        first = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов");
 					            
                     //	Получаем результат операции и заносим в стек
                     locals.Push(CalcualateExpr(c, first, second));
@@ -220,5 +221,26 @@ public class BusinessLogic
             //	По завершению цикла возвращаем результат из стека
             return locals.Pop();
         }
+
+        private void ValidateInputData(TypeOfChar currentChar, TypeOfChar? previousChar, string inputStr, int currentCharPosition)
+        {
+            if (currentChar == TypeOfChar.sequenceOperator)
+            {
+                if (previousChar == TypeOfChar.sequenceOperator)
+                {
+                    throw new ValidationException("Невалидная последовательность операторов");
+                }
+            }
+            
+            if (currentChar == TypeOfChar.numeric)
+            {
+                if (previousChar == TypeOfChar.numeric)
+                {
+                    throw new ValidationException("Между числами должен быть оператор");
+                }  
+            }
+        }
+        
+        
     }
 }
