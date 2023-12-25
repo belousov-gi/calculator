@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
-using WebApplication1.Enums;
 using WebApplication1.Interfaces;
 using WebApplication1.Models;
 
@@ -11,32 +10,23 @@ public class HomeController : Controller
 {
     private CalculatorLogic _calculatorLogic;
     private ISessionsStorage _sessionsStorage;
-    
-
     public HomeController(CalculatorLogic calculatorLogic, ISessionsStorage sessionsStorage)
     {
         _calculatorLogic = calculatorLogic;
         _sessionsStorage = sessionsStorage;
     }
-    
     public IActionResult Index()
     {
-        TypeOfSorting typeOfSorting = TypeOfSorting.ACS;
-        var results = _sessionsStorage.Get(HttpContext.Session, "sessionCalcResults", typeOfSorting);
-        
+        var results = _sessionsStorage.Get();
         return View(results);
     }
     
     [HttpPost]
-    public IActionResult Index( SessionCalculationResultsModel calculationParamsModel)
+    public IActionResult Index(SessionCalculationResultsModel calculationParamsModel)
     {
-        var results =
-            _sessionsStorage.Get(HttpContext.Session, "sessionCalcResults");
-
         try
         {
             ValidateInputData(calculationParamsModel.InputString);
-            
             var inputString = calculationParamsModel.InputString.Replace(" ", "");
             var result = _calculatorLogic.Calculate(inputString);
             var resultModel = new CalculationResultModel()
@@ -44,22 +34,20 @@ public class HomeController : Controller
                 Result = result,
                 InputString = inputString
             };
-            results.sessionCalcResults.Add(resultModel);
-            
-            _sessionsStorage.Set(HttpContext.Session, "sessionCalcResults", results);
+            _sessionsStorage.AddResult(resultModel);
             return Redirect("/");
-            
         }
+
         catch (ValidationException e)
         {
             ViewBag.Message = e.Message;
-            return View(results); 
+            return View(_sessionsStorage.Get());
         }
-        
+
         catch (Exception)
         {
             ViewBag.Message = "Произошла ошибка при вычислениях";
-            return View(results);
+            return View(_sessionsStorage.Get());
         }
     }
 

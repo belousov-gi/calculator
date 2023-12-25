@@ -5,10 +5,7 @@ namespace WebApplication1.Interfaces;
 
 public interface ISessionsStorage
 {
-     void Set(ISession session, string key, SessionCalculationResultsModel value);
-     SessionCalculationResultsModel Get(ISession session, string key);
-     SessionCalculationResultsModel Get(ISession session, string key, TypeOfSorting typeOfSorting);
-    
-     
-
+     void AddResult(CalculationResultModel value);
+     // void AddResult(ISession session, string key, CalculationResultModel value);
+     SessionCalculationResultsModel Get();
 }

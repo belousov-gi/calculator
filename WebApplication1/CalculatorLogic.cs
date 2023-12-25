@@ -9,238 +9,222 @@ public class CalculatorLogic
     //TODO: сделать возможность использования не только целых чисел
     public double Calculate( string expression)
     {
-        Calculator calculator = new(expression);
-        return calculator.CalcPostfix();
+        string postfixExpr = ToPostfix(expression + "\r");
+        double result = CalcPostfix(postfixExpr);
+        return result;
+    }
+
+    private Dictionary<char, int> operationPriority = new() {
+        {'(', 0},
+        {'+', 1},
+        {'-', 1},
+        {'*', 2},
+        {'/', 2},
+        {'^', 3},
+        {'~', 4}	//	Унарный минус
+    };
+  
+    //TODO: возможэно стоит поменять double на decimal, точность будет выше
+    //Получаем число
+    private string GetStringNumber(string expr, ref int pos)
+    {
+        string strNumber = "";
+
+        for (; pos < expr.Length; pos++)
+        {
+            char num = expr[pos];
+
+            //	Проверяем, является символ числом
+            if (Char.IsDigit(num) || num == ',')
+                //	Если да - прибавляем к строке
+                strNumber += num;
+            else
+            {
+                //	Если нет, то перемещаем счётчик к предыдущему символу
+                pos--;
+                break;
+            }
+        }
+
+        //	Возвращаем число
+        return strNumber;
     }
     
-    public class Calculator
+    private string ToPostfix(string infixExpr)
     {
-        //	Хранит инфиксное выражение
-        public string infixExpr {get; private set; }
-        
-        //	Хранит постфиксное выражение
-        public string postfixExpr { get; private set; }
+        //	Выходная строка, содержащая постфиксную запись
+        string postfixExpr = "";
+        //	Инициализация стека, содержащий операторы в виде символов
+        Stack<char> stack = new();
+        Stack<char> braketsValidationStack = new();
+        TypeOfChar? previusChar = null;
 
-        private Dictionary<char, int> operationPriority = new() {
-            {'(', 0},
-            {'+', 1},
-            {'-', 1},
-            {'*', 2},
-            {'/', 2},
-            {'^', 3},
-            {'~', 4}	//	Унарный минус
-        };
-        public Calculator(string expression)
+        int LengthOfExpr = infixExpr.Length;
+        for (int i = 0; i < LengthOfExpr; i++)
         {
-            infixExpr = expression;
-            postfixExpr = ToPostfix(infixExpr + "\r");
-        }
-        
-        //TODO: возможэно стоит поменять double на decimal, точность будет выше
-        //Получаем число
-        private string GetStringNumber(string expr, ref int pos)
-        {
-            string strNumber = "";
-  
-            for (; pos < expr.Length; pos++)
+            char c = infixExpr[i];
+          
+            if (Char.IsDigit(c))
             {
-                char num = expr[pos];
-	
-                //	Проверяем, является символ числом
-                if (Char.IsDigit(num) || num == ',')
-                    //	Если да - прибавляем к строке
-                    strNumber += num;
-                else
+                //TODO:добавить обработку наличия операторов нормальную
+               
+                //	Парсии его, передав строку и текущую позицию, и заносим в выходную строку
+                postfixExpr += GetStringNumber(infixExpr, ref i) + " ";
+                ValidateInputData(TypeOfChar.numeric, previusChar);
+                previusChar = TypeOfChar.numeric;
+                
+            }
+           
+            else if (c == '(')
+            {
+                if (previusChar == TypeOfChar.sequenceOperator || i == 0 || c == '(')
                 {
-                    //	Если нет, то перемещаем счётчик к предыдущему символу
-                    pos--;
-                    
-                    break;
+                    stack.Push(c);
+                    braketsValidationStack.Push(c);
                 }
             }
-
-            //	Возвращаем число
-            return strNumber;
-        }
-        
-        private string ToPostfix(string infixExpr)
-        {
-            //	Выходная строка, содержащая постфиксную запись
-            string postfixExpr = "";
-            //	Инициализация стека, содержащий операторы в виде символов
-            Stack<char> stack = new();
-            Stack<char> braketsValidationStack = new();
-            TypeOfChar? previusChar = null;
-
-            int LengthOfExpr = infixExpr.Length;
-            for (int i = 0; i < LengthOfExpr; i++)
+           
+            else if (c == ')')
             {
-                char c = infixExpr[i];
-              
-                if (Char.IsDigit(c))
+                if (!braketsValidationStack.Any())
                 {
-                    //TODO:добавить обработку наличия операторов нормальную
-                   
-                    //	Парсии его, передав строку и текущую позицию, и заносим в выходную строку
-                    postfixExpr += GetStringNumber(infixExpr, ref i) + " ";
-                    ValidateInputData(TypeOfChar.numeric, previusChar, infixExpr, i);
-                    previusChar = TypeOfChar.numeric;
-                    
-                }
-               
-                else if (c == '(')
-                {
-                    if (previusChar == TypeOfChar.sequenceOperator || i == 0 || c == '(')
-                    {
-                        stack.Push(c);
-                        braketsValidationStack.Push(c);
-                    }
-                }
-               
-                else if (c == ')')
-                {
-                    if (!braketsValidationStack.Any())
-                    {
-                        throw new ValidationException("Невалидная последовательность скобок");
-                    }
-                    
-                    int stackCount = stack.Count;
-                    //	Заносим в выходную строку из стека всё вплоть до открывающей скобки
-                    while (stackCount > 0 && stack.Peek() != '(')
-                    {
-                        postfixExpr += stack.Pop();                        
-                    }
-                    
-                    //	Удаляем открывающуюся скобку из стека
-                    stack.Pop();
-                    braketsValidationStack.Pop();
+                    throw new ValidationException("Невалидная последовательность скобок");
                 }
                 
-                else if (operationPriority.ContainsKey(c))
+                int stackCount = stack.Count;
+                //	Заносим в выходную строку из стека всё вплоть до открывающей скобки
+                while (stackCount > 0 && stack.Peek() != '(')
                 {
-                    ValidateInputData(TypeOfChar.sequenceOperator, previusChar,  infixExpr, i);
-                    previusChar = TypeOfChar.sequenceOperator;
-                    
-                    char op = c;
-                    
-                    //	Если да, то сначала проверяем является ли оператор унарным символом
-                    if (op == '-' && (i == 0 || (i > 1 && operationPriority.ContainsKey(infixExpr[i - 1]))))
-                    {
-                        op = '~';
-                    }
-				
-                    //	Заносим в выходную строку все операторы из стека, имеющие более высокий приоритет
-                    while (stack.Count > 0 && operationPriority[stack.Peek()] >= operationPriority[op])
-                    {
-                        postfixExpr += stack.Pop();
-                    }
-                        
-                    //	Заносим в стек оператор
-                    stack.Push(op);
+                    postfixExpr += stack.Pop();                        
                 }
+                
+                //	Удаляем открывающуюся скобку из стека
+                stack.Pop();
+                braketsValidationStack.Pop();
             }
             
-            //	Заносим все оставшиеся операторы из стека в выходную строку
-            foreach (char op in stack)
+            else if (operationPriority.ContainsKey(c))
             {
-                postfixExpr += op;
-            }
-            
-            if (braketsValidationStack.Any())
-            {
-                throw new ValidationException("Невалидная последовательность скобок");
-            }
-            
-            return postfixExpr;
-        }
-
-        private double CalcualateExpr(char op, double first, double second)
-        {
-            switch (op)
-            {
-                case '+': return first + second;
-                case '-': return first - second;
-                case '*': return first * second;
-                case '/':
+                ValidateInputData(TypeOfChar.sequenceOperator, previusChar);
+                previusChar = TypeOfChar.sequenceOperator;
+                
+                char op = c;
+                
+                //	Если да, то сначала проверяем является ли оператор унарным символом
+                if (op == '-' && (i == 0 || (i > 1 && operationPriority.ContainsKey(infixExpr[i - 1]))))
                 {
-                    if (second != 0)
-                    {
-                        return first / second;
-                    }
-
-                    throw new DivideByZeroException();
+                    op = '~';
                 }
-                case '^': return Math.Pow(first, second);
-                default: throw new ValidationException("Невалидный оператор");
+			
+                //	Заносим в выходную строку все операторы из стека, имеющие более высокий приоритет
+                while (stack.Count > 0 && operationPriority[stack.Peek()] >= operationPriority[op])
+                {
+                    postfixExpr += stack.Pop();
+                }
+                    
+                //	Заносим в стек оператор
+                stack.Push(op);
             }
-            
         }
         
-        public double CalcPostfix()
+        //	Заносим все оставшиеся операторы из стека в выходную строку
+        foreach (char op in stack)
         {
-            //	Стек для хранения чисел
-            Stack<double> locals = new();
+            postfixExpr += op;
+        }
+        
+        if (braketsValidationStack.Any())
+        {
+            throw new ValidationException("Невалидная последовательность скобок");
+        }
+        
+        return postfixExpr;
+    }
+
+    private double CalcualateExpr(char op, double first, double second)
+    {
+        switch (op)
+        {
+            case '+': return first + second;
+            case '-': return first - second;
+            case '*': return first * second;
+            case '/':
+            {
+                if (second != 0)
+                {
+                    return first / second;
+                }
+
+                throw new DivideByZeroException();
+            }
+            case '^': return Math.Pow(first, second);
+            default: throw new ValidationException("Невалидный оператор");
+        }
+        
+    }
+    
+    public double CalcPostfix(string postfixExpr)
+    {
+        //	Стек для хранения чисел
+        Stack<double> locals = new();
+       
+        //	Счётчик действий
+        int counter = 0;
+        
+        for (int i = 0; i < postfixExpr.Length; i++)
+        {
+            char c = postfixExpr[i];
+			
+            if (Char.IsDigit(c))
+            {
+                string number = GetStringNumber(postfixExpr, ref i);
+                
+                //	Заносим в стек, преобразовав из String в Double-тип
+                locals.Push(Convert.ToDouble(number));
+            }
            
-            //	Счётчик действий
-            int counter = 0;
-            
-            for (int i = 0; i < postfixExpr.Length; i++)
+            else if (operationPriority.ContainsKey(c))
             {
-                char c = postfixExpr[i];
-			    
-                if (Char.IsDigit(c))
+                counter += 1;
+                if (c == '~')
                 {
-                    string number = GetStringNumber(postfixExpr, ref i);
-                    
-                    //	Заносим в стек, преобразовав из String в Double-тип
-                    locals.Push(Convert.ToDouble(number));
-                }
-               
-                else if (operationPriority.ContainsKey(c))
-                {
-                    counter += 1;
-                    if (c == '~')
-                    {
-                        //	Проверяем, пуст ли стек: если да - задаём нулевое значение,
-                        //	еси нет - выталкиваем из стека значение
-                        double last = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов");
+                    //	Проверяем, пуст ли стек: если да - задаём нулевое значение,
+                    //	еси нет - выталкиваем из стека значение
+                    double last = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов");
 
-                        //	Получаем результат операции и заносим в стек
-                        locals.Push(CalcualateExpr('-', 0, last));
-                        continue;
-                    }
-					            
-                    //	Получаем значения из стека в обратном порядке
-                    double second = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов"),
-                        first = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов");
-					            
                     //	Получаем результат операции и заносим в стек
-                    locals.Push(CalcualateExpr(c, first, second));
+                    locals.Push(CalcualateExpr('-', 0, last));
+                    continue;
                 }
+					        
+                //	Получаем значения из стека в обратном порядке
+                double second = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов"),
+                    first = locals.Count > 0 ? locals.Pop() : throw new ValidationException("Невалдиная последовательность операторов");
+					        
+                //	Получаем результат операции и заносим в стек
+                locals.Push(CalcualateExpr(c, first, second));
             }
-            //	По завершению цикла возвращаем результат из стека
-            return locals.Pop();
         }
+        //	По завершению цикла возвращаем результат из стека
+        return locals.Pop();
+    }
 
-        private void ValidateInputData(TypeOfChar currentChar, TypeOfChar? previousChar, string inputStr, int currentCharPosition)
+    private void ValidateInputData(TypeOfChar currentChar, TypeOfChar? previousChar)
+    {
+        if (currentChar == TypeOfChar.sequenceOperator)
         {
-            if (currentChar == TypeOfChar.sequenceOperator)
+            if (previousChar == TypeOfChar.sequenceOperator)
             {
-                if (previousChar == TypeOfChar.sequenceOperator)
-                {
-                    throw new ValidationException("Невалидная последовательность операторов");
-                }
-            }
-            
-            if (currentChar == TypeOfChar.numeric)
-            {
-                if (previousChar == TypeOfChar.numeric)
-                {
-                    throw new ValidationException("Между числами должен быть оператор");
-                }  
+                throw new ValidationException("Невалидная последовательность операторов");
             }
         }
         
-        
+        if (currentChar == TypeOfChar.numeric)
+        {
+            if (previousChar == TypeOfChar.numeric)
+            {
+                throw new ValidationException("Между числами должен быть оператор");
+            }  
+        }
     }
 }

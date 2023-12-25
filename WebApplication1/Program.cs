@@ -6,8 +6,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddScoped<CalculatorLogic>();
+builder.Services.AddSingleton<CalculatorLogic>();
+
+string typeOfSorting = builder.Configuration.GetValue<string>("ResultsOrder");
+Environment.SetEnvironmentVariable("ResultsOrder", typeOfSorting);
+
 builder.Services.AddSingleton<ISessionsStorage, SessionStorageService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession();  
 
@@ -23,12 +28,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
-app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
